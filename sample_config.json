@@ -1,0 +1,20 @@
+{
+  "input": "/Volumes/SCANNER/IMAGES",
+  "output": "./export",
+  "format": "png",
+  "bit_depth": 8,
+  "window": "lung",
+  "custom_window": { "wc": -600, "ww": 1500 },
+  "jpeg_quality": 95,
+  "selection": {
+    "series": "PARANCHYME",
+    "start": 1,
+    "end": null,
+    "step": 1,
+    "parity": null
+  },
+  "anonymize": true,
+  "strict_anon": false,
+  "zip": true,
+  "notes": "Fichier d'exemple. Le CLI ne le lit pas automatiquement ; il documente les valeurs typiques. Fenetres CT: lung=WC-600/WW1500, mediastinum=WC40/WW400, bone=WC400/WW1800."
+}

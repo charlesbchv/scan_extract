@@ -1,0 +1,13 @@
+.DS_Store
+.venv/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+
+# Generated medical/image exports
+export/
+
+# Local IDE and assistant settings
+.idea/
+.vscode/
+.claude/

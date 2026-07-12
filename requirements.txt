@@ -1,0 +1,23 @@
+pydicom
+numpy
+Pillow
+pylibjpeg
+pylibjpeg-libjpeg
+pylibjpeg-openjpeg
+pylibjpeg-rle
+pytest
+
+# --- Module 3D (app_3d.py) ---
+SimpleITK
+vtk
+PySide6
+scipy
+scikit-image
+matplotlib
+
+# Optionnel : glisser-déposer réel dans dicom_drop.py
+# pip install tkinterdnd2
+
+# Fallback optionnel de décodage (non installable via pip de façon fiable) :
+#   conda install -c conda-forge gdcm
+# GDCM sert de décodeur de secours pour certains flux JPEG Lossless / JPEG 2000.
