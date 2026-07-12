@@ -41,18 +41,30 @@ class _SliceView(QWidget):
         self.ax = self.fig.add_axes([0, 0, 1, 1])
         self.ax.set_axis_off()
         self._im = None
+        self._overlay_im = None
         self._hline = None
         self._vline = None
         layout.addWidget(self.info)
         layout.addWidget(self.canvas)
         self.canvas.mpl_connect("button_press_event", self._on_click)
 
-    def show_image(self, img2d: np.ndarray, cross=None, label: str = "") -> None:
+    def show_image(self, img2d: np.ndarray, cross=None, label: str = "",
+                   overlay_rgba: np.ndarray | None = None) -> None:
         norm = img2d
         if self._im is None:
             self._im = self.ax.imshow(norm, cmap="gray", vmin=0, vmax=1, origin="upper", aspect="equal")
         else:
             self._im.set_data(norm)
+        # Overlay coloré (RGBA) au-dessus du niveau de gris.
+        if overlay_rgba is not None:
+            if self._overlay_im is None:
+                self._overlay_im = self.ax.imshow(overlay_rgba, origin="upper",
+                                                  aspect="equal", interpolation="nearest")
+            else:
+                self._overlay_im.set_data(overlay_rgba)
+            self._overlay_im.set_visible(True)
+        elif self._overlay_im is not None:
+            self._overlay_im.set_visible(False)
         if cross is not None:
             a, b = cross
             if self._hline is None:
@@ -80,6 +92,9 @@ class MultiplanarViewer(QWidget):
         self.wc = -600.0
         self.ww = 1500.0
         self.z = self.y = self.x = 0
+        self._labels: Optional[np.ndarray] = None          # [z,y,x] uint8
+        self._lut: Optional[np.ndarray] = None             # [n+1, 4] RGBA 0..1
+        self._overlay_alpha = 0.45
 
         self.axial = _SliceView("Axiale")
         self.coronal = _SliceView("Coronale")
@@ -104,6 +119,31 @@ class MultiplanarViewer(QWidget):
         self.wc, self.ww = wc, ww
         self.refresh()
 
+    def set_overlay(self, labels: Optional[np.ndarray],
+                    colors: Optional[list[tuple[float, float, float]]],
+                    alpha: float = 0.45) -> None:
+        """Définit un overlay coloré par étiquettes (0 = transparent).
+
+        ``labels`` : volume [z,y,x] d'entiers. ``colors`` : couleur RGB de
+        chaque étiquette 1..n (dans l'ordre). ``None`` retire l'overlay.
+        """
+        self._overlay_alpha = alpha
+        if labels is None or colors is None:
+            self._labels = self._lut = None
+            self.refresh()
+            return
+        self._labels = labels.astype(np.uint8)
+        lut = np.zeros((len(colors) + 1, 4), dtype=float)  # 0 = fond transparent
+        for i, (r, g, b) in enumerate(colors, 1):
+            lut[i] = (r, g, b, alpha)
+        self._lut = lut
+        self.refresh()
+
+    def _overlay_slice(self, label2d: np.ndarray) -> Optional[np.ndarray]:
+        if self._lut is None:
+            return None
+        return self._lut[np.clip(label2d, 0, len(self._lut) - 1)]
+
     def set_position(self, z: int, y: int, x: int) -> None:
         if not self.volume:
             return
@@ -124,14 +164,19 @@ class MultiplanarViewer(QWidget):
         px = (ox + self.x * sx, oy + self.y * sy, oz + self.z * sz)
         coord = f"HU={hu_here}  patient≈({px[0]:.1f}, {px[1]:.1f}, {px[2]:.1f}) mm"
 
+        lab = self._labels
+        ov_ax = self._overlay_slice(lab[self.z]) if lab is not None else None
+        ov_cor = self._overlay_slice(lab[:, self.y, :]) if lab is not None else None
+        ov_sag = self._overlay_slice(lab[:, :, self.x]) if lab is not None else None
+
         self.axial.show_image(_window(vol[self.z], self.wc, self.ww),
-                              cross=(self.y, self.x),
+                              cross=(self.y, self.x), overlay_rgba=ov_ax,
                               label=f"coupe {self.z+1}/{vol.shape[0]}  {coord}")
         self.coronal.show_image(_window(vol[:, self.y, :], self.wc, self.ww),
-                                cross=(self.z, self.x),
+                                cross=(self.z, self.x), overlay_rgba=ov_cor,
                                 label=f"coupe {self.y+1}/{vol.shape[1]}")
         self.sagittal.show_image(_window(vol[:, :, self.x], self.wc, self.ww),
-                                 cross=(self.z, self.y),
+                                 cross=(self.z, self.y), overlay_rgba=ov_sag,
                                  label=f"coupe {self.x+1}/{vol.shape[2]}")
 
     # Clics -> synchronisation.

@@ -94,6 +94,77 @@ def apply_lung_mask(
     )
 
 
+def _body_mask(hu: np.ndarray, air_threshold_hu: float, warnings: list[str]) -> np.ndarray:
+    """Masque de l'enveloppe corporelle (patient), coupe par coupe.
+
+    Corps = tissu (HU > seuil air) le plus grand, dont on remplit les cavités
+    internes (poumons, voies aériennes). L'air à l'intérieur de cette enveloppe
+    est de l'air pulmonaire/digestif, jamais l'air ambiant extérieur.
+    """
+    tissue = hu > air_threshold_hu
+    body = np.zeros_like(tissue)
+    for z in range(tissue.shape[0]):
+        sl = tissue[z]
+        if not sl.any():
+            continue
+        # Plus grande composante de tissu = corps du patient (retire le bruit,
+        # la table, le remplissage hors champ de vue circulaire).
+        lbl, n = ndimage.label(sl)
+        if n == 0:
+            continue
+        sizes = ndimage.sum(np.ones_like(lbl), lbl, index=range(1, n + 1))
+        biggest = int(np.argmax(sizes)) + 1
+        patient = lbl == biggest
+        # Remplir les cavités internes (poumons) -> enveloppe pleine du corps.
+        body[z] = ndimage.binary_fill_holes(patient)
+    if not body.any():
+        warnings.append("Enveloppe corporelle non détectée : seuil inadapté ?")
+    return body
+
+
+def _select_lung_components(
+    labels: np.ndarray, n: int, min_voxels: int, warnings: list[str]
+) -> np.ndarray:
+    """Sélectionne les composantes d'air ressemblant à des poumons.
+
+    Score = nombre de voxels × (étendue verticale relative). Favorise les
+    grandes structures hautes (poumons) plutôt que les poches compactes
+    (estomac, anses intestinales). Garde au plus 2 composantes.
+    """
+    nz = labels.shape[0]
+    objects = ndimage.find_objects(labels)
+    candidates: list[tuple[float, int]] = []
+    for idx, sl in enumerate(objects, 1):
+        if sl is None:
+            continue
+        size = int((labels[sl] == idx).sum())
+        if size < min_voxels:
+            continue
+        zspan = (sl[0].stop - sl[0].start) / max(nz, 1)  # 0..1
+        # On exige un minimum d'étalement vertical : un poumon n'est jamais
+        # confiné à quelques coupes. L'air digestif l'est souvent.
+        if zspan < 0.20:
+            continue
+        score = size * zspan
+        candidates.append((score, idx))
+
+    if not candidates:
+        warnings.append(
+            "Aucune composante ne ressemble à un poumon (taille/étendue "
+            "verticale insuffisantes). Série non thoracique ? Seuil à ajuster ?"
+        )
+        return _largest_components(labels > 0, 2)
+
+    candidates.sort(reverse=True)
+    keep = [idx for _, idx in candidates[:2]]
+    if len(candidates) > 2:
+        warnings.append(
+            f"{len(candidates)} poches d'air candidates ; les 2 plus « pulmonaires » "
+            "ont été retenues. Vérifiez sur les coupes MPR."
+        )
+    return np.isin(labels, keep)
+
+
 def _largest_components(mask: np.ndarray, keep: int) -> np.ndarray:
     """Conserve les ``keep`` plus grandes composantes connexes 3D."""
     labels, n = ndimage.label(mask)
@@ -122,23 +193,24 @@ def segment_lungs(
 
     # 1. Régions « air/gaz » : poumon + air extérieur + voies aériennes.
     air = hu < air_threshold_hu
-
-    # 2. Exclure l'air extérieur : composantes touchant le bord du volume.
-    labels, n = ndimage.label(air)
-    if n == 0:
+    if not air.any():
         warnings.append("Aucune région aérique détectée : seuil inadapté ?")
         empty = np.zeros_like(air)
         return LungSegmentation(empty, empty.copy(), empty.copy(),
                                 volume.voxel_volume_mm3, warnings)
-    border_labels = set(np.unique(np.concatenate([
-        labels[0].ravel(), labels[-1].ravel(),
-        labels[:, 0].ravel(), labels[:, -1].ravel(),
-        labels[:, :, 0].ravel(), labels[:, :, -1].ravel(),
-    ])).tolist())
-    border_labels.discard(0)
-    internal = air & ~np.isin(labels, list(border_labels))
 
-    # 3. Garder les grandes composantes internes (poumons), retirer le bruit.
+    # 2. Air À L'INTÉRIEUR DU CORPS (méthode de l'enveloppe corporelle).
+    #    Les poumons se connectent à l'air extérieur par la trachée : exclure
+    #    « l'air touchant le bord » supprimerait donc les poumons. On délimite
+    #    plutôt le corps du patient et on garde l'air situé dedans.
+    body = _body_mask(hu, air_threshold_hu, warnings)
+    internal = air & body
+
+    # 3. Sélection des composantes ressemblant à des poumons.
+    #    Les poumons sont grands ET s'étendent verticalement sur une bonne
+    #    hauteur ; l'air digestif (estomac, côlon) forme des poches compactes.
+    #    On classe chaque composante par un score = taille × étendue verticale
+    #    et on ne garde que les meilleures (au plus 2, poumons droit + gauche).
     voxel_ml = volume.voxel_volume_mm3 / 1000.0
     min_voxels = max(1, int(min_component_ml / max(voxel_ml, 1e-9)))
     labels2, n2 = ndimage.label(internal)
@@ -146,9 +218,7 @@ def segment_lungs(
         warnings.append("Aucune composante interne : les poumons touchent-ils le bord ?")
         lungs = internal
     else:
-        sizes = ndimage.sum(np.ones_like(labels2), labels2, index=range(1, n2 + 1))
-        keep = {i + 1 for i, s in enumerate(sizes) if s >= min_voxels}
-        lungs = np.isin(labels2, list(keep)) if keep else _largest_components(internal, 2)
+        lungs = _select_lung_components(labels2, n2, min_voxels, warnings)
 
     # 4. Fermeture morphologique + remplissage de trous 3D (vaisseaux, nodules).
     lungs = ndimage.binary_closing(lungs, iterations=1)

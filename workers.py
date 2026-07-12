@@ -49,13 +49,15 @@ class SegmentationWorker(QThread):
     finished_ok = Signal(object)          # LungSegmentation
     failed = Signal(str)
 
-    def __init__(self, volume: Volume, parent: Optional[QObject] = None) -> None:
+    def __init__(self, volume: Volume, air_threshold_hu: float = -320.0,
+                 parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
         self._volume = volume
+        self._air_threshold_hu = air_threshold_hu
 
     def run(self) -> None:
         try:
-            seg = segment_lungs(self._volume)
+            seg = segment_lungs(self._volume, air_threshold_hu=self._air_threshold_hu)
             self.finished_ok.emit(seg)
         except Exception as exc:  # noqa: BLE001
             self.failed.emit(f"Segmentation échouée : {exc}")

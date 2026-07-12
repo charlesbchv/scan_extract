@@ -21,15 +21,20 @@ from vtk_volume import build_volume_actor
 
 
 def _parse_surface(spec: str):
-    """'fichier.vtp' ou 'fichier.vtp:0.9,0.3,0.3' -> (chemin, couleur|None)."""
+    """Analyse 'fichier.vtp[:r,g,b[,opacité]]'.
+
+    Retourne (chemin, couleur|None, opacité). Opacité par défaut 0.5.
+    """
     if ":" in spec:
-        path, rgb = spec.rsplit(":", 1)
+        path, rest = spec.rsplit(":", 1)
         try:
-            color = tuple(float(x) for x in rgb.split(","))
-            return path, color
+            vals = [float(x) for x in rest.split(",")]
+            color = tuple(vals[:3])
+            opacity = vals[3] if len(vals) >= 4 else 0.5
+            return path, color, opacity
         except ValueError:
-            return spec, None
-    return spec, None
+            return spec, None, 0.5
+    return spec, None, 0.5
 
 
 def main(argv=None) -> int:
@@ -57,7 +62,7 @@ def main(argv=None) -> int:
 
     # Surfaces optionnelles (poumons segmentés, etc.).
     for spec in args.surface:
-        path, color = _parse_surface(spec)
+        path, color, opacity = _parse_surface(spec)
         s_reader = vtk.vtkXMLPolyDataReader()
         s_reader.SetFileName(path)
         s_reader.Update()
@@ -67,7 +72,7 @@ def main(argv=None) -> int:
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
         actor.GetProperty().SetColor(*(color or (0.9, 0.3, 0.3)))
-        actor.GetProperty().SetOpacity(0.5)
+        actor.GetProperty().SetOpacity(opacity)
         renderer.AddActor(actor)
 
     render_window = vtk.vtkRenderWindow()

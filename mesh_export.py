@@ -112,9 +112,15 @@ def export_mask_surface(
     path: Path,
     origin: tuple[float, float, float] = (0.0, 0.0, 0.0),
     smooth_iterations: int = 0,
+    remove_small: bool = True,
 ) -> Path:
-    """Raccourci masque -> surface -> fichier."""
-    poly = mask_to_polydata(mask, spacing, origin, smooth_iterations)
+    """Raccourci masque -> surface -> fichier.
+
+    ``remove_small=False`` conserve toutes les composantes (utile pour un arbre
+    vasculaire dont les branches gauche/droite ne sont pas connectées).
+    """
+    poly = mask_to_polydata(mask, spacing, origin, smooth_iterations,
+                            remove_small=remove_small)
     if poly.GetNumberOfPoints() == 0:
         raise RuntimeError("Surface vide : le masque ne contient aucun voxel.")
     return export_polydata(poly, path)

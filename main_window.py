@@ -17,8 +17,8 @@ from typing import Optional
 import numpy as np
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QComboBox, QDoubleSpinBox, QFileDialog, QGroupBox, QHBoxLayout, QLabel,
-    QListWidget, QListWidgetItem, QMainWindow, QMessageBox, QProgressBar,
+    QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QGroupBox, QHBoxLayout,
+    QLabel, QListWidget, QListWidgetItem, QMainWindow, QMessageBox, QProgressBar,
     QPushButton, QSlider, QSplitter, QTextEdit, QVBoxLayout, QWidget,
 )
 
@@ -109,6 +109,17 @@ class MainWindow(QMainWindow):
         # Segmentation.
         seg_box = QGroupBox("Poumons")
         sl = QVBoxLayout(seg_box)
+        thr_row = QHBoxLayout()
+        thr_row.addWidget(QLabel("Seuil air (HU) :"))
+        self.air_thr = QSlider(Qt.Horizontal)
+        self.air_thr.setRange(-1000, -200)
+        self.air_thr.setValue(-320)
+        self.air_thr_label = QLabel("-320")
+        self.air_thr.valueChanged.connect(lambda v: self.air_thr_label.setText(str(v)))
+        thr_row.addWidget(self.air_thr)
+        thr_row.addWidget(self.air_thr_label)
+        sl.addLayout(thr_row)
+
         self.seg_btn = QPushButton("Segmenter les poumons", clicked=self._segment)
         self.seg_btn.setEnabled(False)
         sl.addWidget(self.seg_btn)
@@ -121,6 +132,26 @@ class MainWindow(QMainWindow):
             b.setEnabled(False)
             sl.addWidget(b)
         v.addWidget(seg_box)
+
+        # Coloration densitométrique des tissus (heuristique, non diagnostique).
+        tissue_box = QGroupBox("Tissus (densitométrie HU)")
+        tl = QVBoxLayout(tissue_box)
+        self.tissue_btn = QPushButton("Colorer les tissus (bronches, verre dépoli, fibrose…)",
+                                      clicked=self._color_tissues)
+        self.tissue_btn.setEnabled(False)
+        tl.addWidget(self.tissue_btn)
+        self.tree_btn = QPushButton("Voir les branches (vaisseaux / bronches)",
+                                    clicked=self._extract_tree)
+        self.tree_btn.setEnabled(False)
+        tl.addWidget(self.tree_btn)
+        self.tissue_toggle = QPushButton("Masquer/afficher l'overlay", clicked=self._toggle_overlay)
+        self.tissue_toggle.setEnabled(False)
+        tl.addWidget(self.tissue_toggle)
+        self.tissue_legend = QLabel("—")
+        self.tissue_legend.setWordWrap(True)
+        self.tissue_legend.setStyleSheet("font-size:10px;")
+        tl.addWidget(self.tissue_legend)
+        v.addWidget(tissue_box)
 
         v.addWidget(QPushButton("Capture PNG de la vue 3D…", clicked=self._screenshot))
         v.addWidget(QPushButton("Sauvegarder la session…", clicked=self._save_session))
@@ -148,6 +179,9 @@ class MainWindow(QMainWindow):
             "La vue 3D s'ouvre dans une fenêtre VTK dédiée (rotation, zoom, pan).\n"
             "Construisez d'abord le volume, puis cliquez ci-dessous."
         ))
+        self.lungs_only_check = QCheckBox("Poumons uniquement (masque le corps, les côtes, la table)")
+        self.lungs_only_check.setChecked(True)
+        layout.addWidget(self.lungs_only_check)
         self.open3d_btn = QPushButton("Ouvrir la vue 3D (fenêtre séparée)",
                                       clicked=self._open_3d_view)
         self.open3d_btn.setEnabled(False)
@@ -247,8 +281,20 @@ class MainWindow(QMainWindow):
             self._tempdir = tempfile.mkdtemp(prefix="dicom3d_")
         tmp = Path(self._tempdir)
 
+        # Volume à rendre : masqué aux poumons si demandé et segmentation dispo.
+        render_volume = self.volume
+        if self.lungs_only_check.isChecked() and self.segmentation is not None:
+            from segmentation import apply_lung_mask
+            render_volume = apply_lung_mask(self.volume, self.segmentation, margin_voxels=2)
+        elif self.lungs_only_check.isChecked() and self.segmentation is None:
+            QMessageBox.information(
+                self, "Poumons uniquement",
+                "Segmentez d'abord les poumons pour n'afficher qu'eux en 3D. "
+                "La vue va s'ouvrir avec le thorax complet."
+            )
+
         # Volume -> .vti
-        img = to_vtk_image_data(self.volume)
+        img = to_vtk_image_data(render_volume)
         vti = tmp / "volume.vti"
         writer = vtk.vtkXMLImageDataWriter()
         writer.SetFileName(str(vti))
@@ -258,8 +304,31 @@ class MainWindow(QMainWindow):
         cmd = [sys.executable, str(Path(__file__).with_name("vtk_view.py")),
                str(vti), "--preset", self.preset_combo.currentText()]
 
-        # Surfaces de segmentation éventuelles (poumons).
-        if self.segmentation is not None:
+        # Arbre vaisseaux/bronches en surface OPAQUE (priorité d'affichage).
+        tree = getattr(self, "tree_mask", None)
+        if tree is not None and tree.any():
+            vtp = tmp / "tree.vtp"
+            try:
+                export_mask_surface(tree, self.volume.spacing, vtp, self.volume.origin,
+                                    smooth_iterations=0, remove_small=False)
+                cmd += ["--surface", f"{vtp}:1.0,0.35,0.55,1.0"]  # opaque rose
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Surface arbre non générée : %s", exc)
+
+        # Surfaces colorées : classes densitométriques si disponibles, sinon poumons.
+        tmap = getattr(self, "tissue_map", None)
+        if tmap is not None:
+            for i, (name, mask) in enumerate(tmap.classes.items()):
+                if not mask.any() or name == "Parenchyme normal":
+                    continue  # on n'englobe pas le parenchyme normal (masque le reste)
+                r, g, b = tmap.colors[name]
+                vtp = tmp / f"tissue_{i}.vtp"
+                try:
+                    export_mask_surface(mask, self.volume.spacing, vtp, self.volume.origin)
+                    cmd += ["--surface", f"{vtp}:{r:.3f},{g:.3f},{b:.3f}"]
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("Surface tissu %s non générée : %s", name, exc)
+        elif self.segmentation is not None:
             for side, color in (("right", "0.9,0.3,0.3"), ("left", "0.3,0.5,0.9")):
                 mask = getattr(self.segmentation, side)
                 if mask.any():
@@ -291,7 +360,7 @@ class MainWindow(QMainWindow):
             return
         self.seg_btn.setEnabled(False)
         self.status.showMessage("Segmentation des poumons…")
-        self._seg_worker = SegmentationWorker(self.volume)
+        self._seg_worker = SegmentationWorker(self.volume, air_threshold_hu=float(self.air_thr.value()))
         self._seg_worker.finished_ok.connect(self._on_seg_ready)
         self._seg_worker.failed.connect(self._on_worker_error)
         self._seg_worker.start()
@@ -301,16 +370,101 @@ class MainWindow(QMainWindow):
         self.seg_manager.add_mask("Poumon droit", seg.right, color=(0.9, 0.3, 0.3))
         self.seg_manager.add_mask("Poumon gauche", seg.left, color=(0.3, 0.5, 0.9))
         m = seg.metrics()
+
+        # Superpose le masque sur les vues MPR pour vérification visuelle.
+        labels = np.where(seg.right, 1, np.where(seg.left, 2, 0)).astype(np.uint8)
+        self.mpr.set_overlay(labels, [(0.9, 0.3, 0.3), (0.3, 0.5, 0.9)], alpha=0.4)
+
+        # Contrôle de plausibilité : un poumon adulte fait ~1500–4000 ml/côté.
+        plausible = self._check_lung_plausibility(seg)
+        warn_html = "" if plausible else (
+            "<br><b style='color:#e05555'>⚠ Résultat peu plausible pour des "
+            "poumons</b> (volume/position atypique). Vérifiez sur les coupes MPR "
+            "et ajustez le seuil, ou la série n'est pas un thorax."
+        )
         self.seg_metrics.setText(
             f"Total : {m['volume_total_ml']} ml<br>"
             f"Droit : {m['volume_right_ml']} ml<br>"
-            f"Gauche : {m['volume_left_ml']} ml<br>"
+            f"Gauche : {m['volume_left_ml']} ml{warn_html}<br>"
             f"<i>{m['disclaimer']}</i>"
         )
         self.export_right.setEnabled(True)
         self.export_left.setEnabled(True)
+        self.tissue_btn.setEnabled(True)
+        self.tree_btn.setEnabled(True)
         self.seg_btn.setEnabled(True)
-        self.status.showMessage("Segmentation terminée (automatique, non validée).")
+        self.status.showMessage(
+            "Segmentation affichée sur les coupes MPR — vérifiez qu'elle suit "
+            "bien les poumons."
+        )
+
+    def _extract_tree(self) -> None:
+        """Extrait l'arbre vaisseaux/bronches et l'affiche (MPR + 3D opaque)."""
+        if not (self.volume and self.segmentation):
+            return
+        from lung_analysis import extract_lung_tree
+
+        tree = extract_lung_tree(self.volume, self.segmentation, hu_threshold=-500.0)
+        self.tree_mask = tree
+        ml = float(tree.sum()) * self.volume.voxel_volume_mm3 / 1000.0
+        # Overlay MPR : arbre en rose vif sur fond poumon.
+        self.mpr.set_overlay(tree.astype("uint8"), [(1.0, 0.35, 0.55)], alpha=0.8)
+        self.tissue_toggle.setEnabled(True)
+        self._overlay_on = True
+        self.status.showMessage(
+            f"Arbre vaisseaux/bronches : {ml:.0f} ml. "
+            "Ouvrez la vue 3D pour le voir en relief (opaque dans le poumon)."
+        )
+
+    def _check_lung_plausibility(self, seg: LungSegmentation) -> bool:
+        """Heuristique : volume total et position verticale compatibles poumons."""
+        total_ml = seg.volume_total_ml
+        if not (500 <= total_ml <= 12000):
+            return False
+        # Les poumons occupent surtout la moitié supérieure (petit z = apex si
+        # tri céphalo-caudal). On tolère, on vérifie juste l'étalement.
+        zs = np.where(seg.combined.any(axis=(1, 2)))[0]
+        if len(zs) == 0:
+            return False
+        span = (zs.max() - zs.min() + 1) / seg.combined.shape[0]
+        return span >= 0.25  # les poumons s'étalent sur une bonne hauteur
+
+    def _color_tissues(self) -> None:
+        """Classification densitométrique HU dans les poumons + overlay MPR."""
+        if not (self.volume and self.segmentation):
+            return
+        from lung_analysis import DENSITY_DISCLAIMER, classify_lung_tissue
+
+        tmap = classify_lung_tissue(self.volume, self.segmentation)
+        self.tissue_map = tmap
+        names = list(tmap.classes)
+        colors = [tmap.colors[n] for n in names]
+        labels = tmap.label_volume(order=names)
+        self.mpr.set_overlay(labels, colors)
+
+        # Légende colorée + volumes (avertissement bien visible).
+        rows = []
+        for n in names:
+            r, g, b = tmap.colors[n]
+            hexc = f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
+            rows.append(f"<span style='color:{hexc}'>■</span> {n} : {tmap.volume_ml(n):.0f} ml")
+        self.tissue_legend.setText(
+            "<br>".join(rows) + f"<br><i style='color:#c9a94a'>{DENSITY_DISCLAIMER}</i>"
+        )
+        self.tissue_toggle.setEnabled(True)
+        self._overlay_on = True
+        self.status.showMessage("Coloration densitométrique appliquée (non diagnostique).")
+
+    def _toggle_overlay(self) -> None:
+        if not getattr(self, "tissue_map", None):
+            return
+        self._overlay_on = not getattr(self, "_overlay_on", True)
+        if self._overlay_on:
+            names = list(self.tissue_map.classes)
+            self.mpr.set_overlay(self.tissue_map.label_volume(order=names),
+                                 [self.tissue_map.colors[n] for n in names])
+        else:
+            self.mpr.set_overlay(None, None)
 
     def _export(self, side: str) -> None:
         if not self.segmentation:
@@ -338,7 +492,11 @@ class MainWindow(QMainWindow):
         try:
             import vtk
 
-            img = to_vtk_image_data(self.volume)
+            render_volume = self.volume
+            if self.lungs_only_check.isChecked() and self.segmentation is not None:
+                from segmentation import apply_lung_mask
+                render_volume = apply_lung_mask(self.volume, self.segmentation, margin_voxels=2)
+            img = to_vtk_image_data(render_volume)
             actor, _ = build_volume_actor(img, self.preset_combo.currentText())
             renderer = vtk.vtkRenderer()
             renderer.SetBackground(0.05, 0.08, 0.15)
