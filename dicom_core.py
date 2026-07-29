@@ -66,8 +66,17 @@ class WindowSetting:
 # Presets de fenêtres CT courants (Hounsfield).
 WINDOW_PRESETS: dict[str, tuple[float, float]] = {
     "lung": (-600.0, 1500.0),
-    "mediastinum": (40.0, 400.0),
+    "mediastinum": (40.0, 350.0),
     "bone": (400.0, 1800.0),
+}
+
+# Correspondance catégorie de série (voir classify_series) -> preset de fenêtre,
+# utilisée par le mode "auto" pour ne pas appliquer une fenêtre pulmonaire aux
+# séries médiastin (et inversement).
+CATEGORY_WINDOW: dict[str, str] = {
+    "LUNG/PARANCHYME": "lung",
+    "MEDIASTINUM": "mediastinum",
+    "BONE": "bone",
 }
 
 
@@ -177,10 +186,30 @@ def apply_window(
 
 
 def resolve_window(
-    ds: FileDataset, preset: str, custom_wc: Optional[float], custom_ww: Optional[float]
+    ds: FileDataset,
+    preset: str,
+    custom_wc: Optional[float],
+    custom_ww: Optional[float],
+    category: Optional[str] = None,
 ) -> WindowSetting:
-    """Détermine la fenêtre à utiliser selon le preset demandé."""
+    """Détermine la fenêtre à utiliser selon le preset demandé.
+
+    En mode ``auto``, la fenêtre est choisie d'après la catégorie de la série
+    (``category`` issu de ``classify_series``) : les séries médiastin reçoivent
+    une fenêtre parties molles, les séries poumon une fenêtre pulmonaire, etc.
+    Si la catégorie est inconnue, repli sur la VOI LUT du fichier (``dicom``).
+    """
     preset = preset.lower()
+    if preset == "auto":
+        mapped = CATEGORY_WINDOW.get(category or "")
+        if mapped is None:
+            logger.info(
+                "Fenêtre auto : catégorie '%s' non mappée, repli sur la VOI LUT DICOM.",
+                category,
+            )
+            return resolve_window(ds, "dicom", custom_wc, custom_ww)
+        wc, ww = WINDOW_PRESETS[mapped]
+        return WindowSetting(wc, ww, f"auto({mapped})")
     if preset in WINDOW_PRESETS:
         wc, ww = WINDOW_PRESETS[preset]
         return WindowSetting(wc, ww, preset)

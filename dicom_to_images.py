@@ -57,7 +57,12 @@ def build_parser() -> argparse.ArgumentParser:
     fmt = p.add_argument_group("Format")
     fmt.add_argument("--format", choices=["png", "jpeg"], default="png")
     fmt.add_argument("--bit-depth", type=int, choices=[8, 16], default=8)
-    fmt.add_argument("--window", choices=["lung", "mediastinum", "bone", "dicom", "custom"], default="dicom")
+    fmt.add_argument(
+        "--window",
+        choices=["auto", "lung", "mediastinum", "bone", "dicom", "custom"],
+        default="auto",
+        help="auto = fenêtre choisie par catégorie de série (médiastin/poumon/os)",
+    )
     fmt.add_argument("--wc", type=float, help="Window Center (mode custom)")
     fmt.add_argument("--ww", type=float, help="Window Width (mode custom)")
     fmt.add_argument("--jpeg-quality", type=int, default=95)
@@ -128,8 +133,11 @@ def export_series(
         logger.warning("Aucune image sélectionnée pour %s", series.series_description)
         return None
 
-    # Fenêtre commune à toute la série (cohérence inter-coupes).
-    window: WindowSetting = resolve_window(series.sample_header, args.window, args.wc, args.ww)
+    # Fenêtre commune à toute la série (cohérence inter-coupes). En mode auto,
+    # elle dépend de la catégorie de la série (médiastin != poumon).
+    window: WindowSetting = resolve_window(
+        series.sample_header, args.window, args.wc, args.ww, series.category
+    )
 
     progress = ProgressPrinter(len(indices), f"Export {series_folder}")
     mapping: list[dict] = []

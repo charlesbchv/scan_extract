@@ -11,3 +11,11 @@ export/
 .idea/
 .vscode/
 .claude/
+
+# Exports dérivés (données médicales)
+*.stl
+*.ply
+*.obj
+*.vtp
+*.zip
+dicom_export_*.zip

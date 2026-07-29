@@ -55,7 +55,7 @@ class App(tk.Tk):
         opts.pack(fill="x")
         self.format_var = tk.StringVar(value="png")
         self.depth_var = tk.IntVar(value=8)
-        self.window_var = tk.StringVar(value="lung")
+        self.window_var = tk.StringVar(value="auto")
 
         ttk.Label(opts, text="Format :").grid(row=0, column=0)
         ttk.Combobox(opts, textvariable=self.format_var, values=["png", "jpeg"], width=8, state="readonly").grid(row=0, column=1)
@@ -63,7 +63,7 @@ class App(tk.Tk):
         ttk.Combobox(opts, textvariable=self.depth_var, values=[8, 16], width=5, state="readonly").grid(row=0, column=3)
         ttk.Label(opts, text="Fenêtre :").grid(row=0, column=4)
         ttk.Combobox(opts, textvariable=self.window_var,
-                     values=["lung", "mediastinum", "bone", "dicom"], width=12, state="readonly").grid(row=0, column=5)
+                     values=["auto", "lung", "mediastinum", "bone", "dicom"], width=12, state="readonly").grid(row=0, column=5)
 
         ttk.Button(opts, text="Convertir", command=self._convert).grid(row=0, column=6, padx=10)
 
@@ -128,7 +128,7 @@ class App(tk.Tk):
             folder = unique_path(study_dir / base, taken).name
             series_dir = study_dir / folder
             series_dir.mkdir(parents=True, exist_ok=True)
-            window = resolve_window(series.sample_header, win, None, None)
+            window = resolve_window(series.sample_header, win, None, None, series.category)
             mapping = []
             raw_params = None
             converted = 0

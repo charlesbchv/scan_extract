@@ -241,3 +241,17 @@ def test_resolve_window_presets():
     assert resolve_window(Dummy(), "bone", None, None).width == 1800
     assert resolve_window(Dummy(), "dicom", None, None).center == 50
     assert resolve_window(Dummy(), "custom", -700, 1600).center == -700
+
+
+def test_resolve_window_auto_by_category():
+    class Dummy:
+        WindowCenter = 50
+        WindowWidth = 350
+    # Médiastin -> fenêtre parties molles, pas la fenêtre pulmonaire.
+    med = resolve_window(Dummy(), "auto", None, None, "MEDIASTINUM")
+    assert (med.center, med.width) == (40, 350)
+    lung = resolve_window(Dummy(), "auto", None, None, "LUNG/PARANCHYME")
+    assert (lung.center, lung.width) == (-600, 1500)
+    # Catégorie inconnue -> repli sur la VOI LUT du fichier.
+    unk = resolve_window(Dummy(), "auto", None, None, "UNKNOWN")
+    assert unk.center == 50
