@@ -19,7 +19,7 @@
 ![Python](https://img.shields.io/badge/Python-3.11%20|%203.12-3776AB?logo=python&logoColor=white)
 ![Plateforme](https://img.shields.io/badge/macOS%20%7C%20Windows-lightgrey)
 ![Local](https://img.shields.io/badge/100%25-local-2ea44f)
-![Tests](https://img.shields.io/badge/tests-20%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-52%20passed-brightgreen)
 ![Licence](https://img.shields.io/badge/licence-MIT-blue)
 
 </div>
@@ -265,13 +265,33 @@ Disposition : trois vues **MPR synchronisées** (axiale / coronale / sagittale) 
 > Sur une machine sans GPU/OpenGL, lancez avec `DICOM3D_NO_VTK=1 python app_3d.py` : les vues MPR,
 > la segmentation et les exports restent disponibles, seule la vue volumique 3D est masquée.
 
+## 🌐 Boilerplate WebGL — Cornerstone + Three.js
+
+Le dossier [`web/`](web/) contient un exemple navigateur autonome : Cornerstone décode une pile
+DICOM locale, puis un shader Three.js la rend par ray marching dans une `Data3DTexture` WebGL2.
+Le rendu inclut filtrage trilinéaire, fonctions de transfert poumon/tissus mous/os, éclairage par
+gradient, ombres volumiques optionnelles, boîte de coupe à six faces et qualité progressive pendant
+l'orbite. Le bouton **3D cutaway** applique une vue en coupe comme dans la démonstration, puis les
+bornes minimum/maximum X/Y/Z permettent de déplacer chaque plan en direct.
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Un fantôme thoracique synthétique s'affiche sans fichier médical. Le bouton **Open DICOM folder**
+charge ensuite une série monochrome ; tout reste local au navigateur. Voir
+[`web/README.md`](web/README.md) pour l'architecture, l'intégration dans une application Cornerstone
+existante et les limites explicites du boilerplate.
+
 ## 🧪 Tests
 
 ```bash
 python -m pytest
 ```
 ```
-20 passed
+52 passed
 ```
 Couvre la détection sans extension, le tri spatial et ses replis, le rescale Hounsfield,
 la fenêtre pulmonaire, MONOCHROME1, PNG 8/16 bits, la création du ZIP, l'anonymisation,

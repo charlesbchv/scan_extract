@@ -12,6 +12,11 @@ export/
 .vscode/
 .claude/
 
+# Web volume-rendering demo
+web/node_modules/
+web/dist/
+web/coverage/
+
 # Exports dérivés (données médicales)
 *.stl
 *.ply
