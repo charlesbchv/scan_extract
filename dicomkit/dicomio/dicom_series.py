@@ -10,12 +10,12 @@ from typing import Optional
 import numpy as np
 from pydicom.dataset import FileDataset
 
-from dicom_core import (
+from dicomkit.dicomio.dicom_core import (
     get_transfer_syntax,
     is_valid_dicom_image,
     read_header,
 )
-from utils import ProgressPrinter
+from dicomkit.utils import ProgressPrinter
 
 logger = logging.getLogger("dicom_to_images")
 

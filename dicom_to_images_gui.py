@@ -12,12 +12,12 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-from dicom_series import scan_directory
-from image_export import export_slice_jpeg, export_slice_png8, export_slice_png16
-from dicom_core import resolve_window
-from dicom_to_images import create_zip
-from metadata_export import build_mapping_entry, build_series_metadata
-from utils import sanitize_filename, setup_logging, unique_path
+from dicomkit.dicomio.dicom_series import scan_directory
+from dicomkit.export.image_export import export_slice_jpeg, export_slice_png8, export_slice_png16
+from dicomkit.dicomio.dicom_core import resolve_window
+from dicomkit.export.archive import create_zip
+from dicomkit.export.metadata_export import build_mapping_entry, build_series_metadata
+from dicomkit.utils import sanitize_filename, setup_logging, unique_path
 
 import json
 from datetime import datetime

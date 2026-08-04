@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from viewer_state import (
+from dicomkit.viewer.viewer_state import (
     SegmentationState,
     ViewerState,
     load_session,

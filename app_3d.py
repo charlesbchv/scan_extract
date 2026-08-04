@@ -12,13 +12,13 @@ from __future__ import annotations
 
 import sys
 
-from utils import setup_logging
+from dicomkit.utils import setup_logging
 
 
 def main() -> int:
     setup_logging(verbose="--verbose" in sys.argv)
     from PySide6.QtWidgets import QApplication
-    from main_window import MainWindow
+    from dicomkit.viewer.main_window import MainWindow
 
     app = QApplication(sys.argv)
     app.setApplicationName("DICOM 3D Viewer (local)")

@@ -9,9 +9,9 @@ from typing import Optional
 
 from PySide6.QtCore import QObject, QThread, Signal
 
-from dicom_series import Series
-from segmentation import LungSegmentation, segment_lungs
-from volume_builder import Volume, VolumeBuildError, build_volume
+from dicomkit.dicomio.dicom_series import Series
+from dicomkit.volume.segmentation import LungSegmentation, segment_lungs
+from dicomkit.volume.volume_builder import Volume, VolumeBuildError, build_volume
 
 
 class VolumeWorker(QThread):

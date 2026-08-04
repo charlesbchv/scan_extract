@@ -39,25 +39,15 @@ testpaths = ["tests"]
 addopts = "-q"
 
 [tool.setuptools]
+# Points d'entrée (scripts lançant une application) restés à la racine.
 py-modules = [
     "dicom_to_images",
     "dicom_to_images_gui",
     "dicom_drop",
-    "dicom_core",
-    "dicom_series",
-    "image_export",
-    "metadata_export",
-    "anonymization",
-    "utils",
-    "volume_builder",
-    "vtk_volume",
-    "multiplanar_viewer",
-    "segmentation",
-    "segmentation_manager",
-    "mesh_export",
-    "viewer_state",
-    "workers",
-    "main_window",
     "app_3d",
+    "vtk_view",
 ]
+
+[tool.setuptools.packages.find]
+include = ["dicomkit*"]
 

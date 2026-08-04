@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from tests.conftest_3d import make_series_from_arrays
-from volume_builder import (
+from dicomkit.volume.volume_builder import (
     Volume,
     VolumeBuildError,
     analyze_geometry,
@@ -69,7 +69,7 @@ def test_vtk_image_data(tmp_path):
 
 
 def test_empty_series_raises():
-    from dicom_series import Series
+    from dicomkit.dicomio.dicom_series import Series
     empty = Series(series_uid="x", study_uid="y", modality="CT", series_number=1,
                    series_description="d", study_description="s", rows=8, columns=8,
                    transfer_syntax="1.2.840.10008.1.2.1")

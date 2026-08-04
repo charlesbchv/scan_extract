@@ -343,15 +343,30 @@ Le GIF en haut est une **démo générée automatiquement** (`python assets/make
 
 ## 🗂️ Structure du projet
 
+À la racine, uniquement les **points d'entrée** (scripts qui lancent une application) ;
+tout le reste vit dans le package `dicomkit/`.
+
+**Points d'entrée (racine)**
+
 | Fichier | Rôle |
 |---|---|
 | `dicom_drop.py` | Interface glisser-déposer (fait tout automatiquement) |
 | `dicom_to_images_gui.py` | Interface avec sélection des séries |
 | `dicom_to_images.py` | CLI complète |
-| `dicom_core.py` | Détection, décodage, rescale, fenêtrage |
-| `dicom_series.py` | Regroupement + tri spatial + classification |
-| `image_export.py` | PNG 8/16 bits, JPEG |
-| `metadata_export.py` · `anonymization.py` · `utils.py` | Métadonnées, anonymisation, utilitaires |
+| `app_3d.py` | Application desktop 3D (PySide6 + VTK) |
+| `vtk_view.py` | Visualiseur 3D VTK autonome |
+
+**Package `dicomkit/`**
+
+| Module | Rôle |
+|---|---|
+| `dicomio/dicom_core.py` | Détection, décodage, rescale, fenêtrage |
+| `dicomio/dicom_series.py` | Regroupement + tri spatial + classification |
+| `export/image_export.py` | PNG 8/16 bits, JPEG |
+| `export/metadata_export.py` · `export/archive.py` | Métadonnées, archive ZIP |
+| `volume/` | Reconstruction volumique, segmentation, maillages |
+| `viewer/` | Fenêtre Qt, vues MPR, rendu VTK, workers |
+| `anonymization.py` · `utils.py` | Anonymisation, utilitaires partagés |
 | `tests/` | Suite pytest |
 
 <div align="center">

@@ -16,7 +16,7 @@ from PySide6.QtWidgets import QGridLayout, QLabel, QVBoxLayout, QWidget
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
-from volume_builder import Volume
+from dicomkit.volume.volume_builder import Volume
 
 
 def _window(arr: np.ndarray, wc: float, ww: float) -> np.ndarray:

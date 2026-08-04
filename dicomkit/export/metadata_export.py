@@ -6,9 +6,9 @@ from typing import Any, Optional
 
 from pydicom.dataset import FileDataset
 
-from anonymization import safe_value
-from dicom_core import WindowSetting
-from dicom_series import Series
+from dicomkit.anonymization import safe_value
+from dicomkit.dicomio.dicom_core import WindowSetting
+from dicomkit.dicomio.dicom_series import Series
 
 
 def _get(ds: FileDataset, attr: str) -> Any:

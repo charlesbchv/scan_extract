@@ -21,8 +21,8 @@ from typing import Callable, Optional
 
 import numpy as np
 
-from dicom_core import apply_modality_lut, decode_pixels
-from dicom_series import Series
+from dicomkit.dicomio.dicom_core import apply_modality_lut, decode_pixels
+from dicomkit.dicomio.dicom_series import Series
 
 logger = logging.getLogger("dicom_to_images")
 

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from segmentation import SEG_DISCLAIMER, segment_lungs
-from segmentation_manager import Segmentation, SegmentationManager
+from dicomkit.volume.segmentation import SEG_DISCLAIMER, segment_lungs
+from dicomkit.volume.segmentation_manager import Segmentation, SegmentationManager
 from tests.conftest_3d import make_synthetic_volume
 
 

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from dicom_series import Series, SliceInfo
-from volume_builder import Volume
+from dicomkit.dicomio.dicom_series import Series, SliceInfo
+from dicomkit.volume.volume_builder import Volume
 
 
 def make_synthetic_volume(nz: int = 20, ny: int = 40, nx: int = 40,
@@ -42,7 +42,7 @@ def make_series_from_arrays(tmp_path, arrays, spacing=(1.0, 1.0), z_step=2.0,
     import pydicom
     from pydicom.dataset import Dataset, FileMetaDataset
     from pydicom.uid import ExplicitVRLittleEndian, generate_uid
-    from dicom_series import scan_directory
+    from dicomkit.dicomio.dicom_series import scan_directory
 
     series_uid = generate_uid()
     for i, arr in enumerate(arrays):

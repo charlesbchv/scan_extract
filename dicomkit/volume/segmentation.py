@@ -15,7 +15,7 @@ from typing import Optional
 import numpy as np
 from scipy import ndimage
 
-from volume_builder import Volume
+from dicomkit.volume.volume_builder import Volume
 
 logger = logging.getLogger("dicom_to_images")
 
@@ -77,7 +77,7 @@ def apply_lung_mask(
     ``margin_voxels`` dilate légèrement le masque pour conserver la paroi
     bronchique et les vaisseaux périphériques liés aux poumons.
     """
-    from volume_builder import Volume
+    from dicomkit.volume.volume_builder import Volume
 
     mask = seg.combined
     if margin_voxels > 0:

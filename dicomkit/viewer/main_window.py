@@ -22,15 +22,15 @@ from PySide6.QtWidgets import (
     QPushButton, QSlider, QSplitter, QTextEdit, QVBoxLayout, QWidget,
 )
 
-from dicom_series import Series, scan_directory
-from mesh_export import export_mask_surface
-from multiplanar_viewer import MultiplanarViewer
-from segmentation import LungSegmentation
-from segmentation_manager import SegmentationManager
-from viewer_state import ViewerState, save_session, series_fingerprint
-from volume_builder import Volume, to_vtk_image_data
-from vtk_volume import PRESETS, build_volume_actor
-from workers import SegmentationWorker, VolumeWorker
+from dicomkit.dicomio.dicom_series import Series, scan_directory
+from dicomkit.volume.mesh_export import export_mask_surface
+from dicomkit.viewer.multiplanar_viewer import MultiplanarViewer
+from dicomkit.volume.segmentation import LungSegmentation
+from dicomkit.volume.segmentation_manager import SegmentationManager
+from dicomkit.viewer.viewer_state import ViewerState, save_session, series_fingerprint
+from dicomkit.volume.volume_builder import Volume, to_vtk_image_data
+from dicomkit.viewer.vtk_volume import PRESETS, build_volume_actor
+from dicomkit.viewer.workers import SegmentationWorker, VolumeWorker
 
 logger = logging.getLogger("dicom_to_images")
 
@@ -284,7 +284,7 @@ class MainWindow(QMainWindow):
         # Volume à rendre : masqué aux poumons si demandé et segmentation dispo.
         render_volume = self.volume
         if self.lungs_only_check.isChecked() and self.segmentation is not None:
-            from segmentation import apply_lung_mask
+            from dicomkit.volume.segmentation import apply_lung_mask
             render_volume = apply_lung_mask(self.volume, self.segmentation, margin_voxels=2)
         elif self.lungs_only_check.isChecked() and self.segmentation is None:
             QMessageBox.information(
@@ -402,7 +402,7 @@ class MainWindow(QMainWindow):
         """Extrait l'arbre vaisseaux/bronches et l'affiche (MPR + 3D opaque)."""
         if not (self.volume and self.segmentation):
             return
-        from lung_analysis import extract_lung_tree
+        from dicomkit.volume.lung_analysis import extract_lung_tree
 
         tree = extract_lung_tree(self.volume, self.segmentation, hu_threshold=-500.0)
         self.tree_mask = tree
@@ -433,7 +433,7 @@ class MainWindow(QMainWindow):
         """Classification densitométrique HU dans les poumons + overlay MPR."""
         if not (self.volume and self.segmentation):
             return
-        from lung_analysis import DENSITY_DISCLAIMER, classify_lung_tissue
+        from dicomkit.volume.lung_analysis import DENSITY_DISCLAIMER, classify_lung_tissue
 
         tmap = classify_lung_tissue(self.volume, self.segmentation)
         self.tissue_map = tmap
@@ -494,7 +494,7 @@ class MainWindow(QMainWindow):
 
             render_volume = self.volume
             if self.lungs_only_check.isChecked() and self.segmentation is not None:
-                from segmentation import apply_lung_mask
+                from dicomkit.volume.segmentation import apply_lung_mask
                 render_volume = apply_lung_mask(self.volume, self.segmentation, margin_voxels=2)
             img = to_vtk_image_data(render_volume)
             actor, _ = build_volume_actor(img, self.preset_combo.currentText())

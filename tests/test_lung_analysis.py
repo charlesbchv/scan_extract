@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import numpy as np
 
-from lung_analysis import (
+from dicomkit.volume.lung_analysis import (
     DENSITY_DISCLAIMER,
     DEFAULT_CLASSES,
     classify_lung_tissue,
 )
-from segmentation import LungSegmentation
-from volume_builder import Volume
+from dicomkit.volume.segmentation import LungSegmentation
+from dicomkit.volume.volume_builder import Volume
 
 
 def _volume_with_regions() -> tuple[Volume, LungSegmentation]:

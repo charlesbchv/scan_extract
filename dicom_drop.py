@@ -28,12 +28,12 @@ try:
 except Exception:  # noqa: BLE001
     _DND = False
 
-from dicom_core import resolve_window
-from dicom_series import scan_directory
-from dicom_to_images import create_zip
-from image_export import export_slice_jpeg, export_slice_png8, export_slice_png16
-from metadata_export import build_mapping_entry, build_series_metadata
-from utils import sanitize_filename, setup_logging, unique_path
+from dicomkit.dicomio.dicom_core import resolve_window
+from dicomkit.dicomio.dicom_series import scan_directory
+from dicomkit.export.archive import create_zip
+from dicomkit.export.image_export import export_slice_jpeg, export_slice_png8, export_slice_png16
+from dicomkit.export.metadata_export import build_mapping_entry, build_series_metadata
+from dicomkit.utils import sanitize_filename, setup_logging, unique_path
 
 
 def _resolve_images_dir(path: Path) -> Path:

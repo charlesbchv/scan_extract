@@ -9,7 +9,7 @@ from typing import Optional
 import numpy as np
 from PIL import Image
 
-from dicom_core import (
+from dicomkit.dicomio.dicom_core import (
     WindowSetting,
     apply_modality_lut,
     apply_window,

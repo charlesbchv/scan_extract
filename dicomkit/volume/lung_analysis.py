@@ -22,8 +22,8 @@ from typing import Optional
 import numpy as np
 from scipy import ndimage
 
-from segmentation import LungSegmentation
-from volume_builder import Volume
+from dicomkit.volume.segmentation import LungSegmentation
+from dicomkit.volume.volume_builder import Volume
 
 logger = logging.getLogger("dicom_to_images")
 

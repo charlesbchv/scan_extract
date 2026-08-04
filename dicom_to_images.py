@@ -13,17 +13,17 @@ import argparse
 import json
 import logging
 import sys
-import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from anonymization import anonymization_warning
-from dicom_core import DicomDecodeError, WindowSetting, resolve_window
-from dicom_series import Series, scan_directory, select_indices
-from image_export import export_slice_jpeg, export_slice_png8, export_slice_png16
-from metadata_export import build_mapping_entry, build_series_metadata
-from utils import (
+from dicomkit.anonymization import anonymization_warning
+from dicomkit.dicomio.dicom_core import DicomDecodeError, WindowSetting, resolve_window
+from dicomkit.dicomio.dicom_series import Series, scan_directory, select_indices
+from dicomkit.export.archive import create_zip
+from dicomkit.export.image_export import export_slice_jpeg, export_slice_png8, export_slice_png16
+from dicomkit.export.metadata_export import build_mapping_entry, build_series_metadata
+from dicomkit.utils import (
     ProgressPrinter,
     human_size,
     sanitize_filename,
@@ -183,15 +183,6 @@ def export_series(
         "converted": converted,
         "window": str(window),
     }
-
-
-def create_zip(output_dir: Path, zip_path: Path) -> int:
-    """Crée le ZIP à partir du dossier de sortie. Retourne la taille en octets."""
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for path in sorted(output_dir.rglob("*")):
-            if path.is_file() and path.resolve() != zip_path.resolve():
-                zf.write(path, path.relative_to(output_dir))
-    return zip_path.stat().st_size
 
 
 def run(args: argparse.Namespace) -> int:

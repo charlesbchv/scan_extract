@@ -17,7 +17,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from vtk_volume import build_volume_actor
+from dicomkit.viewer.vtk_volume import build_volume_actor
 
 
 def _parse_surface(spec: str):

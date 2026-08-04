@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from mesh_export import export_mask_surface, export_polydata, mask_to_polydata
+from dicomkit.volume.mesh_export import export_mask_surface, export_polydata, mask_to_polydata
 
 
 def _ball_mask(n=24, r=7):

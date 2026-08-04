@@ -9,8 +9,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from anonymization import DIRECT_IDENTIFIERS, is_blocked, safe_value
-from dicom_core import (
+from dicomkit.anonymization import DIRECT_IDENTIFIERS, is_blocked, safe_value
+from dicomkit.dicomio.dicom_core import (
     WindowSetting,
     apply_modality_lut,
     apply_window,
@@ -21,10 +21,10 @@ from dicom_core import (
     resolve_window,
     to_uint16_raw,
 )
-from dicom_series import scan_directory, select_indices
-from image_export import export_slice_png8, export_slice_png16
-from metadata_export import build_series_metadata
-from utils import sanitize_filename, unique_path
+from dicomkit.dicomio.dicom_series import scan_directory, select_indices
+from dicomkit.export.image_export import export_slice_png8, export_slice_png16
+from dicomkit.export.metadata_export import build_series_metadata
+from dicomkit.utils import sanitize_filename, unique_path
 
 
 # --- Détection DICOM sans extension ---------------------------------------
